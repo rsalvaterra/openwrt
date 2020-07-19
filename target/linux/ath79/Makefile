@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 ARCH:=mips
 BOARD:=ath79
 BOARDNAME:=Atheros ATH79
-CPU_TYPE:=24kc
+CPU_TYPE:=74kc
 SUBTARGETS:=generic mikrotik nand tiny
 
 FEATURES:=ramdisk squashfs usb
