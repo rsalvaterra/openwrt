@@ -6,7 +6,7 @@ BOARDNAME:=Atheros ATH79
 CPU_TYPE:=24kc
 SUBTARGETS:=generic mikrotik nand tiny
 
-FEATURES:=ramdisk squashfs usbgadget
+FEATURES:=ramdisk squashfs usb
 
 KERNEL_PATCHVER:=6.6
 
