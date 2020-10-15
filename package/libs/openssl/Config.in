@@ -25,6 +25,13 @@ config OPENSSL_SMALL_FOOTPRINT
 		Chacha20-Poly1305 is 15% slower.  X86_64 drops 1% of its size
 		for 3% of performance.  Other arches have not been tested.
 
+config OPENSSL_OVERRIDE_TARGET
+	default y
+	bool "Override target optimization level (force -O3)"
+	depends on OPENSSL_OPTIMIZE_SPEED
+	help
+		Force compiling at -O3 instead of the current target optimization level.
+
 config OPENSSL_WITH_ASM
 	bool
 	default y
