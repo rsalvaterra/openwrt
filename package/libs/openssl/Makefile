@@ -12,6 +12,10 @@ PKG_VERSION:=3.3.1
 PKG_RELEASE:=1
 PKG_BUILD_FLAGS:=no-lto
 
+ifeq ($(CONFIG_OPENSSL_WITH_ASM),y)
+  PKG_BUILD_FLAGS+=no-mips16
+endif
+
 PKG_BUILD_PARALLEL:=1
 
 PKG_BASE:=$(subst $(space),.,$(wordlist 1,2,$(subst .,$(space),$(PKG_VERSION))))
