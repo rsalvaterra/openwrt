@@ -64,7 +64,7 @@ Link: https://lore.kernel.org/r/20211011123533.GA15188@kili
  		ret = ath9k_hw_nvram_read_pdata(pdata, off, data);
 --- a/drivers/net/wireless/ath/ath9k/hw.h
 +++ b/drivers/net/wireless/ath/ath9k/hw.h
-@@ -988,6 +988,8 @@ struct ath_hw {
+@@ -991,6 +991,8 @@ struct ath_hw {
  	bool disable_5ghz;
  
  	const struct firmware *eeprom_blob;
