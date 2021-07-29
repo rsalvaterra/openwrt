@@ -72,13 +72,11 @@ $(eval $(call KernelPackage,usb-phy-nop))
 
 define KernelPackage/phy-ath79-usb
   TITLE:=Support for ATH79 USB PHY
-  KCONFIG:=CONFIG_PHY_AR7100_USB \
-	CONFIG_PHY_AR7200_USB
+  KCONFIG:=CONFIG_PHY_AR7200_USB
   DEPENDS:=@TARGET_ath79
   HIDDEN:=1
-  FILES:=$(LINUX_DIR)/drivers/phy/phy-ar7100-usb.ko \
-	$(LINUX_DIR)/drivers/phy/phy-ar7200-usb.ko
-  AUTOLOAD:=$(call AutoLoad,21,phy-ar7100-usb phy-ar7200-usb,1)
+  FILES:=$(LINUX_DIR)/drivers/phy/phy-ar7200-usb.ko
+  AUTOLOAD:=$(call AutoLoad,21,phy-ar7200-usb,1)
   $(call AddDepends/usb)
 endef
 
@@ -371,8 +369,7 @@ define KernelPackage/usb2
 	CONFIG_USB_EHCI_MXC=y \
 	CONFIG_USB_OCTEON_EHCI=y \
 	CONFIG_USB_EHCI_HCD_ORION=y \
-	CONFIG_USB_EHCI_HCD_AT91=y \
-	CONFIG_USB_EHCI_FSL
+	CONFIG_USB_EHCI_HCD_AT91=y
   FILES:= \
 	$(LINUX_DIR)/drivers/usb/host/ehci-platform.ko
   ifneq ($(wildcard $(LINUX_DIR)/drivers/usb/host/ehci-orion.ko),)
@@ -380,9 +377,6 @@ define KernelPackage/usb2
   endif
   ifneq ($(wildcard $(LINUX_DIR)/drivers/usb/host/ehci-atmel.ko),)
     FILES+=$(LINUX_DIR)/drivers/usb/host/ehci-atmel.ko
-  endif
-  ifneq ($(wildcard $(LINUX_DIR)/drivers/usb/host/ehci-fsl.ko),)
-    FILES+=$(LINUX_DIR)/drivers/usb/host/ehci-fsl.ko
   endif
   ifneq ($(wildcard $(LINUX_DIR)/drivers/usb/host/fsl-mph-dr-of.ko),)
     FILES+=$(LINUX_DIR)/drivers/usb/host/fsl-mph-dr-of.ko
