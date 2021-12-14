@@ -1,0 +1,12 @@
+--- a/ath10k-5.15/core.c
++++ b/ath10k-5.15/core.c
+@@ -4428,6 +4428,9 @@ struct ath10k *ath10k_core_create(size_t
+ 	INIT_WORK(&ar->stop_scan_work, ath10k_wmi_stop_scan_work);
+ 
+ 	init_dummy_netdev(&ar->napi_dev);
++	snprintf(ar->napi_dev.name, sizeof(ar->napi_dev.name), "%s",
++		 wiphy_name(ar->hw->wiphy));
++	ar->napi_dev.threaded = 1;
+ 
+ 	ret = ath10k_coredump_create(ar);
+ 	if (ret)
