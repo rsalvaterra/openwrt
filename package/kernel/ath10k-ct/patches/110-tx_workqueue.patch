@@ -1,0 +1,222 @@
+--- a/ath10k-5.15/core.h
++++ b/ath10k-5.15/core.h
+@@ -1461,6 +1461,7 @@ struct ath10k {
+ 	struct workqueue_struct *workqueue;
+ 	/* Auxiliary workqueue */
+ 	struct workqueue_struct *workqueue_aux;
++	struct workqueue_struct *workqueue_tx;
+ 	struct workqueue_struct *workqueue_tx_complete;
+ 	/* prevents concurrent FW reconfiguration */
+ 	struct mutex conf_mutex;
+@@ -1496,6 +1497,8 @@ struct ath10k {
+ 	int eeprom_regdom;
+ 	bool eeprom_regdom_warned;
+ 
++	struct work_struct tx_work;
++
+ 	struct work_struct svc_rdy_work;
+ 	struct sk_buff *svc_rdy_skb;
+ 
+--- a/ath10k-5.15/core.c
++++ b/ath10k-5.15/core.c
+@@ -4346,6 +4346,10 @@ struct ath10k *ath10k_core_create(size_t
+ 	if (!ar->workqueue_tx_complete)
+ 		goto err_free_aux_wq;
+ 
++	ar->workqueue_tx = create_singlethread_workqueue("ath10k_wq_tx");
++	if (!ar->workqueue_tx)
++		goto err_free_tx_complete;
++
+ 	mutex_init(&ar->conf_mutex);
+ 	mutex_init(&ar->dump_mutex);
+ 	spin_lock_init(&ar->data_lock);
+@@ -4357,6 +4361,8 @@ struct ath10k *ath10k_core_create(size_t
+ 
+ 	skb_queue_head_init(&ar->htt.rx_indication_head);
+ 
++	INIT_WORK(&ar->tx_work, ath10k_mac_tx_work);
++
+ 	init_completion(&ar->offchan_tx_completed);
+ 	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);
+ 	skb_queue_head_init(&ar->offchan_tx_queue);
+@@ -4377,7 +4383,7 @@ struct ath10k *ath10k_core_create(size_t
+ 
+ 	ret = ath10k_coredump_create(ar);
+ 	if (ret)
+-		goto err_free_tx_complete;
++		goto err_free_tx_wq;
+ 
+ 	ret = ath10k_debug_create(ar);
+ 	if (ret)
+@@ -4387,6 +4393,8 @@ struct ath10k *ath10k_core_create(size_t
+ 
+ err_free_coredump:
+ 	ath10k_coredump_destroy(ar);
++err_free_tx_wq:
++	destroy_workqueue(ar->workqueue_tx);
+ err_free_tx_complete:
+ 	destroy_workqueue(ar->workqueue_tx_complete);
+ err_free_aux_wq:
+--- a/ath10k-5.15/htt_rx.c
++++ b/ath10k-5.15/htt_rx.c
+@@ -3776,7 +3776,7 @@ static void ath10k_htt_rx_tx_mode_switch
+ 
+ 	rcu_read_unlock();
+ 
+-	ath10k_mac_tx_push_pending(ar);
++	queue_work(ar->workqueue_tx, &ar->tx_work);
+ }
+ 
+ void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
+@@ -4564,18 +4564,33 @@ int ath10k_htt_rx_hl_indication(struct a
+ }
+ EXPORT_SYMBOL(ath10k_htt_rx_hl_indication);
+ 
+-int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
++void ath10k_htt_process_tx_fetch_ind(struct ath10k *ar)
+ {
+ 	struct ath10k_htt *htt = &ar->htt;
+-	struct htt_tx_done tx_done = {0};
+ 	struct sk_buff_head tx_ind_q;
+ 	struct sk_buff *skb;
+ 	unsigned long flags;
+-	int quota = 0, done, ret;
+-	bool resched_napi = false;
+ 
+ 	__skb_queue_head_init(&tx_ind_q);
+ 
++	spin_lock_irqsave(&htt->tx_fetch_ind_q.lock, flags);
++	skb_queue_splice_init(&htt->tx_fetch_ind_q, &tx_ind_q);
++	spin_unlock_irqrestore(&htt->tx_fetch_ind_q.lock, flags);
++
++	while ((skb = __skb_dequeue(&tx_ind_q))) {
++		ath10k_htt_rx_tx_fetch_ind(ar, skb);
++		dev_kfree_skb_any(skb);
++	}
++}
++
++int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
++{
++	struct ath10k_htt *htt = &ar->htt;
++	struct htt_tx_done tx_done = {0};
++	struct sk_buff *skb;
++	int quota = 0, done, ret;
++	bool resched_napi = false;
++
+ 	/* Process pending frames before dequeuing more data
+ 	 * from hardware.
+ 	 */
+@@ -4625,16 +4640,8 @@ int ath10k_htt_txrx_compl_task(struct at
+ 	while (kfifo_get(&htt->txdone_fifo, &tx_done))
+ 		ath10k_txrx_tx_unref(htt, &tx_done);
+ 
+-	ath10k_mac_tx_push_pending(ar);
++	queue_work(ar->workqueue_tx, &ar->tx_work);
+ 
+-	spin_lock_irqsave(&htt->tx_fetch_ind_q.lock, flags);
+-	skb_queue_splice_init(&htt->tx_fetch_ind_q, &tx_ind_q);
+-	spin_unlock_irqrestore(&htt->tx_fetch_ind_q.lock, flags);
+-
+-	while ((skb = __skb_dequeue(&tx_ind_q))) {
+-		ath10k_htt_rx_tx_fetch_ind(ar, skb);
+-		dev_kfree_skb_any(skb);
+-	}
+ 
+ exit:
+ 	ath10k_htt_rx_msdu_buff_replenish(htt);
+--- a/ath10k-5.15/mac.c
++++ b/ath10k-5.15/mac.c
+@@ -5250,7 +5250,7 @@ static int ath10k_mac_schedule_txq(struc
+ 	return ret;
+ }
+ 
+-void ath10k_mac_tx_push_pending(struct ath10k *ar)
++static void ath10k_mac_tx_push_pending(struct ath10k *ar)
+ {
+ 	struct ieee80211_hw *hw = ar->hw;
+ 	u32 ac;
+@@ -5268,7 +5268,6 @@ void ath10k_mac_tx_push_pending(struct a
+ 	}
+ 	rcu_read_unlock();
+ }
+-EXPORT_SYMBOL(ath10k_mac_tx_push_pending);
+ 
+ /************/
+ /* Scanning */
+@@ -5568,32 +5567,25 @@ static void ath10k_mac_op_tx(struct ieee
+ 	}
+ }
+ 
++
++void ath10k_mac_tx_work(struct work_struct *work)
++{
++	struct ath10k *ar = container_of(work, struct ath10k, tx_work);
++
++	ath10k_mac_tx_push_pending(ar);
++	ath10k_htt_process_tx_fetch_ind(ar);
++}
++
+ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
+ 					struct ieee80211_txq *txq)
+ {
+ 	struct ath10k *ar = hw->priv;
+-	int ret;
+-	u8 ac;
+ 
+ 	ath10k_htt_tx_txq_update(hw, txq);
+ 	if (ar->htt.tx_q_state.mode != HTT_TX_MODE_SWITCH_PUSH)
+ 		return;
+ 
+-	ac = txq->ac;
+-	ieee80211_txq_schedule_start(hw, ac);
+-	txq = ieee80211_next_txq(hw, ac);
+-	if (!txq)
+-		goto out;
+-
+-	while (ath10k_mac_tx_can_push(hw, txq)) {
+-		ret = ath10k_mac_tx_push_txq(hw, txq);
+-		if (ret < 0)
+-			break;
+-	}
+-	ieee80211_return_txq(hw, txq, false);
+-	ath10k_htt_tx_txq_update(hw, txq);
+-out:
+-	ieee80211_txq_schedule_end(hw, ac);
++	queue_work(ar->workqueue_tx, &ar->tx_work);
+ }
+ 
+ /* Must not be called with conf_mutex held as workers can use that also. */
+--- a/ath10k-5.15/htt.h
++++ b/ath10k-5.15/htt.h
+@@ -2388,6 +2388,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt
+ void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
+ 					     struct sk_buff *skb);
+ int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
++void ath10k_htt_process_tx_fetch_ind(struct ath10k *ar);
+ int ath10k_htt_rx_hl_indication(struct ath10k *ar, int budget);
+ void ath10k_htt_set_tx_ops(struct ath10k_htt *htt);
+ void ath10k_htt_set_rx_ops(struct ath10k_htt *htt);
+--- a/ath10k-5.15/mac.h
++++ b/ath10k-5.15/mac.h
+@@ -77,9 +77,9 @@ void ath10k_mac_tx_unlock(struct ath10k
+ void ath10k_mac_vif_tx_lock(struct ath10k_vif *arvif, int reason);
+ void ath10k_mac_vif_tx_unlock(struct ath10k_vif *arvif, int reason);
+ bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar);
+-void ath10k_mac_tx_push_pending(struct ath10k *ar);
+ int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
+ 			   struct ieee80211_txq *txq);
++void ath10k_mac_tx_work(struct work_struct *work);
+ struct ieee80211_txq *ath10k_mac_txq_lookup(struct ath10k *ar,
+ 					    u16 peer_id,
+ 					    u8 tid);
+--- a/ath10k-5.15/sdio.c
++++ b/ath10k-5.15/sdio.c
+@@ -1533,7 +1533,7 @@ static void ath10k_sdio_irq_handler(stru
+ 			break;
+ 	} while (time_before(jiffies, timeout) && !done);
+ 
+-	ath10k_mac_tx_push_pending(ar);
++	queue_work(ar->workqueue_tx, &ar->tx_work);
+ 
+ 	sdio_claim_host(ar_sdio->func);
+ 
