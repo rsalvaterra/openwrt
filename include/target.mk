@@ -33,8 +33,7 @@ DEFAULT_PACKAGES:=\
 	netifd \
 	uci \
 	uclient-fetch \
-	urandom-seed \
-	urngd
+	urandom-seed
 
 ifneq ($(CONFIG_USE_APK),)
 DEFAULT_PACKAGES+=apk-mbedtls
