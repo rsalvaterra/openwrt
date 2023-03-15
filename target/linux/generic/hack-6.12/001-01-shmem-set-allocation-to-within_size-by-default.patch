@@ -1,0 +1,21 @@
+From 661e41941bfe7fd7ecb423867de44088d4e96f4a Mon Sep 17 00:00:00 2001
+From: Rui Salvaterra <rsalvaterra@gmail.com>
+Date: Tue, 14 Mar 2023 10:47:13 +0000
+Subject: [PATCH 3/4] shmem: set allocation to "within_size" by default
+
+Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
+---
+ mm/shmem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -546,7 +546,7 @@ static bool shmem_confirm_swap(struct ad
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ /* ifdef here to avoid bloating shmem.o when not necessary */
+ 
+-static int shmem_huge __read_mostly = SHMEM_HUGE_NEVER;
++static int shmem_huge __read_mostly = SHMEM_HUGE_WITHIN_SIZE;
+ 
+ static bool __shmem_huge_global_enabled(struct inode *inode, pgoff_t index,
+ 					loff_t write_end, bool shmem_huge_force,
