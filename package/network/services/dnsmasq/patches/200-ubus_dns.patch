@@ -1,19 +1,23 @@
---- a/src/dnsmasq.c
-+++ b/src/dnsmasq.c
-@@ -2021,6 +2021,10 @@ static void check_dns_listeners(time_t n
- 		  daemon->pipe_to_parent = pipefd[1];
- 		}
+Index: dnsmasq-2.91test9/src/dnsmasq.c
+===================================================================
+--- dnsmasq-2.91test9.orig/src/dnsmasq.c
++++ dnsmasq-2.91test9/src/dnsmasq.c
+@@ -2097,6 +2097,10 @@ static void do_tcp_connection(struct lis
+       daemon->pipe_to_parent = pipefd[1];
+     }
  
 +#ifdef HAVE_UBUS
-+	      drop_ubus_listeners();
++  drop_ubus_listeners();
 +#endif
 +
- 	      /* start with no upstream connections. */
- 	      for (s = daemon->servers; s; s = s->next)
- 		 s->tcpfd = -1; 
---- a/src/dnsmasq.h
-+++ b/src/dnsmasq.h
-@@ -1670,14 +1670,26 @@ void emit_dbus_signal(int action, struct
+   /* The connected socket inherits non-blocking
+      attribute from the listening socket. 
+      Reset that here. */
+Index: dnsmasq-2.91test9/src/dnsmasq.h
+===================================================================
+--- dnsmasq-2.91test9.orig/src/dnsmasq.h
++++ dnsmasq-2.91test9/src/dnsmasq.h
+@@ -1688,14 +1688,26 @@ void emit_dbus_signal(int action, struct
  
  /* ubus.c */
  #ifdef HAVE_UBUS
@@ -40,9 +44,11 @@
  #endif
  
  /* ipset.c */
---- a/src/forward.c
-+++ b/src/forward.c
-@@ -803,7 +803,7 @@ static size_t process_reply(struct dns_h
+Index: dnsmasq-2.91test9/src/forward.c
+===================================================================
+--- dnsmasq-2.91test9.orig/src/forward.c
++++ dnsmasq-2.91test9/src/forward.c
+@@ -735,7 +735,7 @@ static size_t process_reply(struct dns_h
  	  cache_secure = 0;
  	}
        
@@ -51,8 +57,10 @@
  	cache_secure = 0;
        
        /* check_for_bogus_wildcard() does it's own caching, so
---- a/src/rfc1035.c
-+++ b/src/rfc1035.c
+Index: dnsmasq-2.91test9/src/rfc1035.c
+===================================================================
+--- dnsmasq-2.91test9.orig/src/rfc1035.c
++++ dnsmasq-2.91test9/src/rfc1035.c
 @@ -13,8 +13,10 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -63,9 +71,9 @@
 +#include <libubox/blobmsg.h>
 +#endif
  
- int extract_name(struct dns_header *header, size_t plen, unsigned char **pp, 
- 		 char *name, int isExtract, int extrabytes)
-@@ -384,10 +386,65 @@ static int private_net6(struct in6_addr
+ /* EXTR_NAME_EXTRACT -> extract name
+    EXTR_NAME_COMPARE -> compare name, case insensitive
+@@ -409,10 +411,65 @@ static int private_net6(struct in6_addr
      ((u32 *)a)[0] == htonl(0x20010db8); /* RFC 6303 4.6 */
  }
  
@@ -132,7 +140,7 @@
    int done = 0;
    
    if (!(p = skip_questions(header, qlen)))
-@@ -404,7 +461,7 @@ int do_doctor(struct dns_header *header,
+@@ -429,7 +486,7 @@ int do_doctor(struct dns_header *header,
        
        GETSHORT(qtype, p); 
        GETSHORT(qclass, p);
@@ -141,7 +149,7 @@
        GETSHORT(rdlen, p);
        
        if (qclass == C_IN && qtype == T_A)
-@@ -415,6 +472,9 @@ int do_doctor(struct dns_header *header,
+@@ -440,6 +497,9 @@ int do_doctor(struct dns_header *header,
  	  if (!CHECK_LEN(header, p, qlen, INADDRSZ))
  	    return done;
  	  
@@ -151,7 +159,7 @@
  	  /* alignment */
  	  memcpy(&addr.addr4, p, INADDRSZ);
  	  
-@@ -444,6 +504,14 @@ int do_doctor(struct dns_header *header,
+@@ -469,6 +529,14 @@ int do_doctor(struct dns_header *header,
  	      break;
  	    }
  	}
@@ -166,8 +174,10 @@
        
        if (!ADD_RDLEN(header, p, qlen, rdlen))
  	 return done; /* bad packet */
---- a/src/ubus.c
-+++ b/src/ubus.c
+Index: dnsmasq-2.91test9/src/ubus.c
+===================================================================
+--- dnsmasq-2.91test9.orig/src/ubus.c
++++ dnsmasq-2.91test9/src/ubus.c
 @@ -72,6 +72,13 @@ static struct ubus_object ubus_object =
    .subscribe_cb = ubus_subscribe_cb,
  };
