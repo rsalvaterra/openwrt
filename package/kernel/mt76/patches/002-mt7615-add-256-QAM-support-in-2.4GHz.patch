@@ -1,0 +1,21 @@
+From 8c4d538ed24e26b23c6c6d99be091c75770b38c2 Mon Sep 17 00:00:00 2001
+From: rany <ranygh@riseup.net>
+Date: Fri, 12 May 2023 19:49:38 +0300
+Subject: [PATCH] wifi: mt76: mt7615: add 256-QAM support in 2.4GHz
+
+Signed-off-by: rany <ranygh@riseup.net>
+---
+ mt7615/init.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+--- a/mt7615/init.c
++++ b/mt7615/init.c
+@@ -409,6 +409,8 @@ mt7615_init_wiphy(struct ieee80211_hw *h
+ 		hw->max_tx_fragments = MT_HW_TXP_MAX_BUF_NUM;
+ 
+ 	phy->mt76->sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
++	phy->mt76->sband_2g.sband.vht_cap.cap |=
++			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
+ 	phy->mt76->sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
+ 	phy->mt76->sband_5g.sband.vht_cap.cap |=
+ 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;

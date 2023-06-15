@@ -1,0 +1,35 @@
+From 4f0670343704f41b68378164092e31c7d2dd6207 Mon Sep 17 00:00:00 2001
+From: Rani Hod <rani.hod@gmail.com>
+Date: Thu, 15 Jun 2023 15:44:32 +0300
+Subject: [PATCH 6/6] Set the vendor_qam256_supported flag when initializing 2g
+ bands.
+
+Signed-off-by: Rani Hod <rani.hod@gmail.com>
+---
+ mac80211.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -362,11 +362,20 @@ static int
+ mt76_init_sband_2g(struct mt76_phy *phy, struct ieee80211_rate *rates,
+ 		   int n_rates, bool vht)
+ {
++	int ret;
++
+ 	phy->hw->wiphy->bands[NL80211_BAND_2GHZ] = &phy->sband_2g.sband;
+ 
+-	return mt76_init_sband(phy, &phy->sband_2g, mt76_channels_2ghz,
++	ret = mt76_init_sband(phy, &phy->sband_2g, mt76_channels_2ghz,
+ 			       ARRAY_SIZE(mt76_channels_2ghz), rates,
+ 			       n_rates, true, vht);
++
++	if (ret)
++		return ret;
++
++	phy->sband_2g.sband.vht_cap.vendor_qam256_supported = true;
++
++	return 0;
+ }
+ 
+ static int
