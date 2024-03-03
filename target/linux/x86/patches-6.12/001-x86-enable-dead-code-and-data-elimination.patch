@@ -1,0 +1,106 @@
+From e8079a25e2b77780a51aa2ffba45b87f706cb9fe Mon Sep 17 00:00:00 2001
+From: Rui Salvaterra <rsalvaterra@gmail.com>
+Date: Wed, 4 Nov 2020 19:45:04 +0000
+Subject: [PATCH] x86: enable dead code and data elimination
+
+Adapt Nick Piggin's original patch [1]. This saves nearly 300 kiB on the final
+vmlinuz (zstd-compressed).
+
+[1] https://lore.kernel.org/lkml/20170709031333.29443-1-npiggin@gmail.com/
+
+Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
+---
+ arch/x86/Kconfig              |  1 +
+ arch/x86/kernel/vmlinux.lds.S | 18 +++++++++---------
+ 2 files changed, 10 insertions(+), 9 deletions(-)
+
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -252,6 +252,7 @@ config X86
+ 	select HAVE_FUNCTION_ERROR_INJECTION
+ 	select HAVE_KRETPROBES
+ 	select HAVE_RETHOOK
++	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
+ 	select HAVE_LIVEPATCH			if X86_64
+ 	select HAVE_MIXED_BREAKPOINTS_REGS
+ 	select HAVE_MOD_ARCH_SPECIFIC
+--- a/arch/x86/kernel/vmlinux.lds.S
++++ b/arch/x86/kernel/vmlinux.lds.S
+@@ -246,14 +246,14 @@ SECTIONS
+ 	 * See static_cpu_has() for an example.
+ 	 */
+ 	.altinstr_aux : AT(ADDR(.altinstr_aux) - LOAD_OFFSET) {
+-		*(.altinstr_aux)
++		KEEP(*(.altinstr_aux))
+ 	}
+ 
+ 	INIT_DATA_SECTION(16)
+ 
+ 	.x86_cpu_dev.init : AT(ADDR(.x86_cpu_dev.init) - LOAD_OFFSET) {
+ 		__x86_cpu_dev_start = .;
+-		*(.x86_cpu_dev.init)
++		KEEP(*(.x86_cpu_dev.init))
+ 		__x86_cpu_dev_end = .;
+ 	}
+ 
+@@ -261,7 +261,7 @@ SECTIONS
+ 	.x86_intel_mid_dev.init : AT(ADDR(.x86_intel_mid_dev.init) - \
+ 								LOAD_OFFSET) {
+ 		__x86_intel_mid_dev_start = .;
+-		*(.x86_intel_mid_dev.init)
++		KEEP(*(.x86_intel_mid_dev.init))
+ 		__x86_intel_mid_dev_end = .;
+ 	}
+ #endif
+@@ -320,7 +320,7 @@ SECTIONS
+ 	. = ALIGN(8);
+ 	.altinstructions : AT(ADDR(.altinstructions) - LOAD_OFFSET) {
+ 		__alt_instructions = .;
+-		*(.altinstructions)
++		KEEP(*(.altinstructions))
+ 		__alt_instructions_end = .;
+ 	}
+ 
+@@ -330,13 +330,13 @@ SECTIONS
+ 	 * get the address and the length of them to patch the kernel safely.
+ 	 */
+ 	.altinstr_replacement : AT(ADDR(.altinstr_replacement) - LOAD_OFFSET) {
+-		*(.altinstr_replacement)
++		KEEP(*(.altinstr_replacement))
+ 	}
+ 
+ 	. = ALIGN(8);
+ 	.apicdrivers : AT(ADDR(.apicdrivers) - LOAD_OFFSET) {
+ 		__apicdrivers = .;
+-		*(.apicdrivers);
++		KEEP(*(.apicdrivers))
+ 		__apicdrivers_end = .;
+ 	}
+ 
+@@ -374,7 +374,7 @@ SECTIONS
+ 	. = ALIGN(PAGE_SIZE);
+ 	.smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
+ 		__smp_locks = .;
+-		*(.smp_locks)
++		KEEP(*(.smp_locks))
+ 		. = ALIGN(PAGE_SIZE);
+ 		__smp_locks_end = .;
+ 	}
+@@ -409,7 +409,7 @@ SECTIONS
+ 	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
+ 		__brk_base = .;
+ 		. += 64 * 1024;		/* 64k alignment slop space */
+-		*(.bss..brk)		/* areas brk users have reserved */
++		KEEP(*(.bss..brk))	/* areas brk users have reserved */
+ 		__brk_limit = .;
+ 	}
+ 
+@@ -435,7 +435,7 @@ SECTIONS
+ 	. = ALIGN(HPAGE_SIZE);
+ 	.init.scratch : AT(ADDR(.init.scratch) - LOAD_OFFSET) {
+ 		__init_scratch_begin = .;
+-		*(.init.scratch)
++		KEEP(*(.init.scratch))
+ 		. = ALIGN(HPAGE_SIZE);
+ 		__init_scratch_end = .;
+ 	}
