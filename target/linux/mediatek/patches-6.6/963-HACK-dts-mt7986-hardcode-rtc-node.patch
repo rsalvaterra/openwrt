@@ -1,0 +1,16 @@
+Index: linux-6.6.30/arch/arm64/boot/dts/mediatek/mt7986a-bananapi-bpi-r3.dts
+===================================================================
+--- linux-6.6.30.orig/arch/arm64/boot/dts/mediatek/mt7986a-bananapi-bpi-r3.dts
++++ linux-6.6.30/arch/arm64/boot/dts/mediatek/mt7986a-bananapi-bpi-r3.dts
+@@ -227,6 +227,11 @@
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&i2c_pins>;
+ 	status = "okay";
++
++	ds3231: rtc@68 {
++		compatible = "maxim,ds3231";
++		reg = <0x68>;
++	};
+ };
+ 
+ &pcie {
