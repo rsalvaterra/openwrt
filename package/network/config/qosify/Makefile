@@ -14,7 +14,7 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_DATE:=2024-09-20
 PKG_SOURCE_VERSION:=1501e0935175d713ad229d88a8401dbfddc0a6b4
 PKG_MIRROR_HASH:=6d6e07285a6c46f040ba88555accc64c291837f9726944b9e41ec4efbaaf6c20
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_LICENSE:=GPL-2.0
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
@@ -49,7 +49,7 @@ endef
 
 define Package/qosify/conffiles
 /etc/config/qosify
-/etc/qosify/00-defaults.conf
+/etc/qosify/
 endef
 
 define Package/qosify/install
