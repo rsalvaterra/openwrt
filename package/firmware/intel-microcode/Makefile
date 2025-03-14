@@ -33,7 +33,7 @@ endef
 
 define Build/Compile
 	IUCODE_TOOL=$(STAGING_DIR)/../host/bin/iucode_tool $(MAKE) all -C $(PKG_BUILD_DIR)
-	$(STAGING_DIR)/../host/bin/iucode_tool -q \
+	$(STAGING_DIR)/../host/bin/iucode_tool -q -s 0x000b06e0 \
 		--write-earlyfw=$(PKG_BUILD_DIR)/intel-ucode.img $(PKG_BUILD_DIR)/intel-ucode{,-with-caveats}/
 endef
 
